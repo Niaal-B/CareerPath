@@ -49,3 +49,26 @@ export const assignTest = async (testId: number) => {
   const response = await api.post(`admin/tests/${testId}/assign/`)
   return response.data
 }
+
+export const fetchStudentTests = async () => {
+  const response = await api.get('student/tests/')
+  return response.data
+}
+
+export const fetchStudentTestDetail = async (testId: number) => {
+  const response = await api.get(`student/tests/${testId}/`)
+  return response.data
+}
+
+export const submitAnswer = async (testId: number, questionId: number, optionId: number) => {
+  const response = await api.post(`student/tests/${testId}/answer/`, {
+    question_id: questionId,
+    option_id: optionId,
+  })
+  return response.data
+}
+
+export const submitTest = async (testId: number) => {
+  const response = await api.post(`student/tests/${testId}/submit/`)
+  return response.data
+}

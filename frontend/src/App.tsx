@@ -13,6 +13,8 @@ import ReviewsPage from './pages/admin/ReviewsPage'
 import ComingSoon from './pages/dashboard/ComingSoon'
 import StudentDashboard from './pages/dashboard/StudentDashboard'
 import StudentRequestsPage from './pages/dashboard/StudentRequestsPage'
+import StudentTestsPage from './pages/dashboard/StudentTestsPage'
+import TestTakingPage from './pages/dashboard/TestTakingPage'
 
 function App() {
   return (
@@ -37,6 +39,26 @@ function App() {
             <ProtectedRoute role="student">
               <DashboardLayout>
                 <StudentRequestsPage />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/tests"
+          element={
+            <ProtectedRoute role="student">
+              <DashboardLayout>
+                <StudentTestsPage />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/tests/:testId"
+          element={
+            <ProtectedRoute role="student">
+              <DashboardLayout>
+                <TestTakingPage />
               </DashboardLayout>
             </ProtectedRoute>
           }

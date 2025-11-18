@@ -1,16 +1,18 @@
+from django.utils import timezone
 from rest_framework import generics, permissions
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .models import PersonalizedTest, TestRequest, User
+from .models import Option, PersonalizedTest, Question, StudentAnswer, TestRequest, User
 from .serializers import (
     CareerRecommendationSerializer,
     CustomTokenObtainPairSerializer,
     PersonalizedTestSerializer,
     QuestionCreateSerializer,
     QuestionSerializer,
+    StudentAnswerSerializer,
     StudentRegistrationSerializer,
     TestRequestCreateSerializer,
     TestRequestSerializer,
@@ -172,3 +174,144 @@ class AdminTestAssignView(APIView):
         test.save()
         test.request.save()
         return Response({'message': 'Test assigned successfully.', 'test': PersonalizedTestSerializer(test).data})
+
+
+class StudentTestListView(APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request):
+        if request.user.role != User.Roles.STUDENT:
+            raise PermissionDenied("Only students can view their tests.")
+        tests = PersonalizedTest.objects.filter(
+            request__student=request.user,
+            status=PersonalizedTest.Status.ASSIGNED
+        ).select_related('request').order_by('-request__created_at')
+        return Response({
+            'tests': [
+                {
+                    'id': test.id,
+                    'request_id': test.request.id,
+                    'created_at': test.request.created_at,
+                    'questions_count': test.questions.count(),
+                    'answered_count': StudentAnswer.objects.filter(
+                        student=request.user,
+                        question__personalized_test=test
+                    ).count(),
+                }
+                for test in tests
+            ]
+        })
+
+
+class StudentTestDetailView(APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request, test_id):
+        if request.user.role != User.Roles.STUDENT:
+            raise PermissionDenied("Only students can view tests.")
+        try:
+            test = PersonalizedTest.objects.prefetch_related('questions', 'questions__options').get(
+                id=test_id,
+                request__student=request.user
+            )
+        except PersonalizedTest.DoesNotExist:
+            raise PermissionDenied("Test not found.")
+        if test.status != PersonalizedTest.Status.ASSIGNED:
+            return Response({'error': 'Test is not available for taking.'}, status=400)
+        questions_data = []
+        for question in test.questions.all():
+            answer = StudentAnswer.objects.filter(student=request.user, question=question).first()
+            questions_data.append({
+                'id': question.id,
+                'prompt': question.prompt,
+                'order': question.order,
+                'options': [
+                    {
+                        'id': option.id,
+                        'label': option.label,
+                        'description': option.description,
+                        'order': option.order,
+                    }
+                    for option in question.options.all()
+                ],
+                'selected_option_id': answer.option.id if answer and answer.option else None,
+            })
+        return Response({
+            'test': {
+                'id': test.id,
+                'request_id': test.request.id,
+                'questions': sorted(questions_data, key=lambda x: x['order']),
+                'total_questions': len(questions_data),
+                'answered_count': StudentAnswer.objects.filter(
+                    student=request.user,
+                    question__personalized_test=test
+                ).count(),
+            }
+        })
+
+
+class StudentAnswerSubmitView(APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request, test_id):
+        if request.user.role != User.Roles.STUDENT:
+            raise PermissionDenied("Only students can submit answers.")
+        try:
+            test = PersonalizedTest.objects.get(id=test_id, request__student=request.user)
+        except PersonalizedTest.DoesNotExist:
+            raise PermissionDenied("Test not found.")
+        if test.status != PersonalizedTest.Status.ASSIGNED:
+            return Response({'error': 'Test is not available for taking.'}, status=400)
+        question_id = request.data.get('question_id')
+        option_id = request.data.get('option_id')
+        if not question_id or not option_id:
+            return Response({'error': 'question_id and option_id are required.'}, status=400)
+        try:
+            question = Question.objects.get(id=question_id, personalized_test=test)
+            option = question.options.get(id=option_id)
+        except (Question.DoesNotExist, Option.DoesNotExist):
+            return Response({'error': 'Invalid question or option.'}, status=400)
+        answer, created = StudentAnswer.objects.update_or_create(
+            student=request.user,
+            question=question,
+            defaults={'option': option}
+        )
+        return Response({
+            'message': 'Answer submitted successfully.',
+            'answer': {
+                'question_id': answer.question.id,
+                'option_id': answer.option.id,
+            }
+        })
+
+
+class StudentTestSubmitView(APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request, test_id):
+        if request.user.role != User.Roles.STUDENT:
+            raise PermissionDenied("Only students can submit tests.")
+        try:
+            test = PersonalizedTest.objects.get(id=test_id, request__student=request.user)
+        except PersonalizedTest.DoesNotExist:
+            raise PermissionDenied("Test not found.")
+        if test.status != PersonalizedTest.Status.ASSIGNED:
+            return Response({'error': 'Test is not available for submission.'}, status=400)
+        total_questions = test.questions.count()
+        answered_count = StudentAnswer.objects.filter(
+            student=request.user,
+            question__personalized_test=test
+        ).count()
+        if answered_count < total_questions:
+            return Response({
+                'error': f'Please answer all questions. {answered_count}/{total_questions} answered.'
+            }, status=400)
+        test.status = PersonalizedTest.Status.COMPLETED
+        test.completed_at = timezone.now()
+        test.request.status = TestRequest.Status.COMPLETED
+        test.save()
+        test.request.save()
+        return Response({
+            'message': 'Test submitted successfully.',
+            'test': PersonalizedTestSerializer(test).data
+        })

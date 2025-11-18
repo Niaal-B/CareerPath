@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext'
 const studentLinks = [
   { label: 'Overview', to: '/dashboard', icon: '📊' },
   { label: 'Test Requests', to: '/dashboard/requests', icon: '📝' },
+  { label: 'Tests', to: '/dashboard/tests', icon: '📋' },
   { label: 'Recommendations', to: '/dashboard/recommendations', icon: '🌱' },
 ]
 
@@ -21,7 +22,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           <BrandLogo />
           <nav className="mt-10 space-y-2">
             {studentLinks.map((link) => {
-              const isActive = location.pathname === link.to
+              const isActive = location.pathname === link.to || (link.to === '/dashboard/tests' && location.pathname.startsWith('/dashboard/tests/'))
               return (
                 <Link
                   key={link.to}
