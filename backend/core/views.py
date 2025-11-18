@@ -318,6 +318,39 @@ class StudentTestSubmitView(APIView):
         })
 
 
+class StudentRecommendationsView(APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request):
+        if request.user.role != User.Roles.STUDENT:
+            raise PermissionDenied("Only students can view their recommendations.")
+        recommendations = CareerRecommendation.objects.filter(
+            personalized_test__request__student=request.user
+        ).select_related('personalized_test', 'personalized_test__request').prefetch_related('steps').order_by('-created_at')
+        return Response({
+            'recommendations': [
+                {
+                    'id': rec.id,
+                    'career_name': rec.career_name,
+                    'summary': rec.summary,
+                    'created_at': rec.created_at,
+                    'test_id': rec.personalized_test.id,
+                    'request_id': rec.personalized_test.request.id,
+                    'steps': [
+                        {
+                            'id': step.id,
+                            'order': step.order,
+                            'title': step.title,
+                            'description': step.description,
+                        }
+                        for step in rec.steps.all().order_by('order')
+                    ],
+                }
+                for rec in recommendations
+            ]
+        })
+
+
 class AdminCompletedTestsListView(APIView):
     permission_classes = (permissions.IsAuthenticated,)
 

@@ -73,6 +73,11 @@ export const submitTest = async (testId: number) => {
   return response.data
 }
 
+export const fetchStudentRecommendations = async () => {
+  const response = await api.get('student/recommendations/')
+  return response.data
+}
+
 export const fetchCompletedTests = async () => {
   const response = await api.get('admin/tests/completed/')
   return response.data

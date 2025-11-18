@@ -10,8 +10,8 @@ import AdminDashboard from './pages/admin/AdminDashboard'
 import QuestionBuilderPage from './pages/admin/QuestionBuilderPage'
 import RequestsPage from './pages/admin/RequestsPage'
 import ReviewsPage from './pages/admin/ReviewsPage'
-import ComingSoon from './pages/dashboard/ComingSoon'
 import StudentDashboard from './pages/dashboard/StudentDashboard'
+import StudentRecommendationsPage from './pages/dashboard/StudentRecommendationsPage'
 import StudentRequestsPage from './pages/dashboard/StudentRequestsPage'
 import StudentTestsPage from './pages/dashboard/StudentTestsPage'
 import TestTakingPage from './pages/dashboard/TestTakingPage'
@@ -68,7 +68,7 @@ function App() {
           element={
             <ProtectedRoute role="student">
               <DashboardLayout>
-                <ComingSoon title="Recommendations" />
+                <StudentRecommendationsPage />
               </DashboardLayout>
             </ProtectedRoute>
           }
