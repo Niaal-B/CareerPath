@@ -142,3 +142,96 @@ class RoadmapStep(models.Model):
 
     def __str__(self):
         return f"Step {self.order} for recommendation {self.recommendation_id}"
+
+
+class ResourceCategory(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
+    icon = models.CharField(max_length=50, blank=True, help_text="Icon name or emoji")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name_plural = "Resource Categories"
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
+class CareerResource(models.Model):
+    class ResourceType(models.TextChoices):
+        ARTICLE = 'article', 'Article'
+        VIDEO = 'video', 'Video'
+        COURSE = 'course', 'Course'
+        BOOK = 'book', 'Book'
+        CERTIFICATION = 'certification', 'Certification'
+        TOOL = 'tool', 'Tool'
+        COMMUNITY = 'community', 'Community'
+        REPORT = 'report', 'Report'
+        OTHER = 'other', 'Other'
+
+    class DifficultyLevel(models.TextChoices):
+        BEGINNER = 'beginner', 'Beginner'
+        INTERMEDIATE = 'intermediate', 'Intermediate'
+        ADVANCED = 'advanced', 'Advanced'
+
+    # Link to career recommendation (optional - can be general or specific)
+    career_recommendation = models.ForeignKey(
+        CareerRecommendation,
+        on_delete=models.CASCADE,
+        related_name='resources',
+        null=True,
+        blank=True,
+        help_text="Leave blank for general resources available to all careers"
+    )
+    category = models.ForeignKey(ResourceCategory, on_delete=models.SET_NULL, null=True, related_name='resources')
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    resource_type = models.CharField(max_length=20, choices=ResourceType.choices, default=ResourceType.ARTICLE)
+    url = models.URLField(blank=True, help_text="External link to the resource")
+    file = models.FileField(upload_to='resources/', blank=True, null=True, help_text="Upload file if resource is downloadable")
+    difficulty_level = models.CharField(max_length=20, choices=DifficultyLevel.choices, default=DifficultyLevel.BEGINNER)
+    is_free = models.BooleanField(default=True)
+    cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Cost if not free")
+    admin = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_resources')
+    order = models.PositiveIntegerField(default=0, help_text="Order for display")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', 'created_at']
+        indexes = [
+            models.Index(fields=['career_recommendation', 'is_active']),
+            models.Index(fields=['category', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.title} ({self.get_resource_type_display()})"
+
+
+class StudentResourceProgress(models.Model):
+    class Status(models.TextChoices):
+        NOT_STARTED = 'not_started', 'Not Started'
+        IN_PROGRESS = 'in_progress', 'In Progress'
+        COMPLETED = 'completed', 'Completed'
+        SKIPPED = 'skipped', 'Skipped'
+
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='resource_progress')
+    resource = models.ForeignKey(CareerResource, on_delete=models.CASCADE, related_name='student_progress')
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.NOT_STARTED)
+    notes = models.TextField(blank=True, help_text="Student's personal notes about this resource")
+    is_favorite = models.BooleanField(default=False)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('student', 'resource')
+        verbose_name_plural = "Student Resource Progress"
+        indexes = [
+            models.Index(fields=['student', 'status']),
+        ]
+
+    def __str__(self):
+        return f"{self.student.email} - {self.resource.title} ({self.get_status_display()})"

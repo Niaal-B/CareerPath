@@ -9,6 +9,7 @@ import RegisterPage from './pages/auth/RegisterPage'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import QuestionBuilderPage from './pages/admin/QuestionBuilderPage'
 import RequestsPage from './pages/admin/RequestsPage'
+import ResourcesPage from './pages/admin/ResourcesPage'
 import ReviewsPage from './pages/admin/ReviewsPage'
 import StudentDashboard from './pages/dashboard/StudentDashboard'
 import StudentRecommendationsPage from './pages/dashboard/StudentRecommendationsPage'
@@ -109,6 +110,16 @@ function App() {
             <ProtectedRoute role="admin">
               <AdminLayout>
                 <ReviewsPage />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/resources"
+          element={
+            <ProtectedRoute role="admin">
+              <AdminLayout>
+                <ResourcesPage />
               </AdminLayout>
             </ProtectedRoute>
           }

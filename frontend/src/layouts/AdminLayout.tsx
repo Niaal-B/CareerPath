@@ -9,6 +9,7 @@ const adminLinks = [
   { label: 'Requests', to: '/admin/requests', icon: '🧾' },
   { label: 'Question Builder', to: '/admin/questions', icon: '✍️' },
   { label: 'Reviews', to: '/admin/reviews', icon: '🧐' },
+  { label: 'Resources', to: '/admin/resources', icon: '📚' },
 ]
 
 export function AdminLayout({ children }: { children: ReactNode }) {

@@ -25,7 +25,7 @@ A full-stack web application that provides personalized career guidance through 
 ### Backend
 - **Django 5.2.8** - Web framework
 - **Django REST Framework** - RESTful API
-- **PostgreSQL** - Database
+- **SQLite (default) / PostgreSQL** - Database options
 - **JWT Authentication** - Secure token-based auth
 - **django-cors-headers** - CORS handling
 - **python-dotenv** - Environment variable management
@@ -42,7 +42,7 @@ A full-stack web application that provides personalized career guidance through 
 
 - Python 3.12+
 - Node.js 18+
-- PostgreSQL 14+
+- PostgreSQL 14+ (optional – only if you disable SQLite)
 - npm or yarn
 
 ## 🚀 Installation
@@ -65,11 +65,14 @@ A full-stack web application that provides personalized career guidance through 
    pip install -r requirements.txt
    ```
 
-4. **Set up PostgreSQL database**
-   ```bash
-   # Create database
-   createdb career_db
-   ```
+4. **Choose your database**
+   - **SQLite (default):** no extra setup required. A `db.sqlite3` file will be created automatically in the backend directory on first run.
+   - **PostgreSQL (optional):**
+     ```bash
+     # Create database
+     createdb career_db
+     ```
+     Make sure PostgreSQL is running and accessible.
 
 5. **Create `.env` file**
    ```bash
@@ -78,6 +81,10 @@ A full-stack web application that provides personalized career guidance through 
    
    Add the following to `backend/.env`:
    ```env
+   USE_SQLITE=1          # Set to 0 to switch to PostgreSQL
+   SQLITE_DB_NAME=db.sqlite3
+
+   # Only required when USE_SQLITE=0
    POSTGRES_DB=career_db
    POSTGRES_USER=career_user
    POSTGRES_PASSWORD=your_secure_password
@@ -279,6 +286,8 @@ npm run lint
 ## 📝 Environment Variables
 
 ### Backend (.env)
+- `USE_SQLITE` - Set to `1` (default) to use SQLite, `0` to switch to PostgreSQL
+- `SQLITE_DB_NAME` - Optional SQLite file name (defaults to `db.sqlite3`)
 - `POSTGRES_DB` - Database name
 - `POSTGRES_USER` - Database user
 - `POSTGRES_PASSWORD` - Database password
@@ -325,9 +334,13 @@ The production build will be in the `frontend/dist/` directory.
 ### Backend Issues
 
 **Database Connection Error:**
-- Ensure PostgreSQL is running
-- Check `.env` file has correct database credentials
-- Verify database exists: `psql -l | grep career_db`
+- If you're using the default SQLite setup:
+  - Ensure the backend process has permission to read/write `backend/db.sqlite3`
+  - Delete the file and rerun migrations if it becomes corrupted
+- If you're using PostgreSQL (`USE_SQLITE=0`):
+  - Ensure PostgreSQL is running
+  - Check `.env` file has correct database credentials
+  - Verify database exists: `psql -l | grep career_db`
 
 **Migration Errors:**
 - Run `python manage.py makemigrations`

@@ -1,12 +1,34 @@
 import { useEffect, useState } from 'react'
 
-import { exportRecommendationPDF, fetchStudentRecommendations } from '../../services/dashboard'
+import { exportRecommendationPDF, fetchStudentRecommendations, updateResourceProgress } from '../../services/dashboard'
 
 type RoadmapStep = {
   id: number
   order: number
   title: string
   description: string
+}
+
+type Resource = {
+  id: number
+  title: string
+  description: string
+  resource_type: string
+  url?: string
+  file_url?: string
+  difficulty_level: string
+  is_free: boolean
+  cost?: number
+  category?: {
+    id: number
+    name: string
+    icon?: string
+  }
+  student_progress?: {
+    status: string
+    is_favorite: boolean
+    notes?: string
+  } | null
 }
 
 type Recommendation = {
@@ -17,6 +39,7 @@ type Recommendation = {
   test_id: number
   request_id: number
   steps: RoadmapStep[]
+  resources?: Resource[]
 }
 
 export default function StudentRecommendationsPage() {
@@ -59,6 +82,42 @@ export default function StudentRecommendationsPage() {
     } finally {
       setExporting(null)
     }
+  }
+
+  const handleResourceStatusUpdate = async (resourceId: number, status: string) => {
+    try {
+      await updateResourceProgress(resourceId, { status })
+      // Refresh recommendations to get updated progress
+      const data = await fetchStudentRecommendations()
+      setRecommendations(data.recommendations || [])
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } }
+      setError(error?.response?.data?.detail || 'Failed to update resource status.')
+    }
+  }
+
+  const getResourceTypeIcon = (type: string) => {
+    const icons: Record<string, string> = {
+      article: '📄',
+      video: '🎥',
+      course: '📚',
+      book: '📖',
+      certification: '🏆',
+      tool: '🛠️',
+      community: '👥',
+      report: '📊',
+      other: '📌',
+    }
+    return icons[type] || icons.other
+  }
+
+  const getDifficultyColor = (level: string) => {
+    const colors: Record<string, string> = {
+      beginner: 'bg-green-100 text-green-700',
+      intermediate: 'bg-yellow-100 text-yellow-700',
+      advanced: 'bg-red-100 text-red-700',
+    }
+    return colors[level] || colors.beginner
   }
 
   if (loading) {
@@ -167,6 +226,87 @@ export default function StudentRecommendationsPage() {
                           <h5 className="font-semibold text-ink">{step.title}</h5>
                           {step.description && (
                             <p className="mt-1 text-sm text-slate-600">{step.description}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {recommendation.resources && recommendation.resources.length > 0 && (
+                <div className="mt-8">
+                  <p className="mb-4 text-sm font-semibold uppercase tracking-[0.3em] text-muted">
+                    Learning Resources
+                  </p>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {recommendation.resources.map((resource) => (
+                      <div
+                        key={resource.id}
+                        className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xl">{getResourceTypeIcon(resource.resource_type)}</span>
+                              <h5 className="font-semibold text-ink">{resource.title}</h5>
+                            </div>
+                            {resource.category && (
+                              <span className="mt-1 inline-block rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">
+                                {resource.category.icon} {resource.category.name}
+                              </span>
+                            )}
+                            <p className="mt-2 text-sm text-slate-600">{resource.description}</p>
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                              <span className={`rounded-full px-2 py-1 text-xs font-medium ${getDifficultyColor(resource.difficulty_level)}`}>
+                                {resource.difficulty_level}
+                              </span>
+                              {resource.is_free ? (
+                                <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
+                                  Free
+                                </span>
+                              ) : (
+                                <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700">
+                                  ${resource.cost}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-4 flex items-center gap-2">
+                          {resource.url && (
+                            <a
+                              href={resource.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 rounded-lg bg-brand px-4 py-2 text-center text-sm font-semibold text-white transition hover:bg-brand-dark"
+                            >
+                              Open Resource
+                            </a>
+                          )}
+                          {resource.file_url && (
+                            <a
+                              href={resource.file_url}
+                              download
+                              className="flex-1 rounded-lg border border-brand bg-white px-4 py-2 text-center text-sm font-semibold text-brand transition hover:bg-brand/5"
+                            >
+                              Download
+                            </a>
+                          )}
+                        </div>
+                        <div className="mt-3 flex items-center gap-2">
+                          <select
+                            value={resource.student_progress?.status || 'not_started'}
+                            onChange={(e) => handleResourceStatusUpdate(resource.id, e.target.value)}
+                            className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs focus:border-brand focus:outline-none"
+                          >
+                            <option value="not_started">Not Started</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="completed">Completed</option>
+                            <option value="skipped">Skipped</option>
+                          </select>
+                          {resource.student_progress?.is_favorite && (
+                            <span className="text-yellow-500">⭐</span>
                           )}
                         </div>
                       </div>
