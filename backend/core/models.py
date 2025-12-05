@@ -36,6 +36,13 @@ class User(AbstractUser):
         choices=Roles.choices,
         default=Roles.STUDENT,
     )
+    phone = models.CharField(
+        max_length=20,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text="E.164 format recommended, e.g. +911234567890",
+    )
     qualification = models.CharField(max_length=255, blank=True)
     interests = models.TextField(blank=True)
 

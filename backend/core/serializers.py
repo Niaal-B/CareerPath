@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+import re
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -27,6 +28,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = (
             'id',
             'email',
+            'phone',
             'first_name',
             'last_name',
             'role',
@@ -37,6 +39,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 class StudentRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
+    phone = serializers.CharField(required=True, allow_blank=False)
 
     class Meta:
         model = User
@@ -46,6 +49,7 @@ class StudentRegistrationSerializer(serializers.ModelSerializer):
             'password',
             'first_name',
             'last_name',
+            'phone',
             'qualification',
             'interests',
         )
@@ -56,6 +60,28 @@ class StudentRegistrationSerializer(serializers.ModelSerializer):
         user.set_password(password)
         user.save()
         return user
+
+    def validate_phone(self, value):
+        import re
+
+        pattern = re.compile(r'^\+?[1-9]\d{7,14}$')
+        if not pattern.match(value):
+            raise serializers.ValidationError("Enter a valid phone number (e.g., +911234567890).")
+        return value
+
+    def validate(self, attrs):
+        # Basic trimming validation to avoid blank or whitespace-only fields
+        for field in ['first_name', 'last_name', 'qualification', 'interests', 'email']:
+            if not attrs.get(field, '').strip():
+                raise serializers.ValidationError({field: "This field cannot be blank."})
+        name_pattern = r"^[A-Za-z][A-Za-z\s'-]{1,48}$"
+        for field in ['first_name', 'last_name']:
+            value = attrs.get(field, '')
+            if value and not re.match(name_pattern, value):
+                raise serializers.ValidationError({
+                    field: "Only letters, spaces, apostrophes, and hyphens allowed (2-50 chars)."
+                })
+        return attrs
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
