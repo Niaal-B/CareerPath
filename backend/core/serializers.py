@@ -6,7 +6,10 @@ from .models import (
     CareerRecommendation,
     CareerResource,
     Option,
+    OptionTemplate,
     PersonalizedTest,
+    QuestionCategory,
+    QuestionTemplate,
     Question,
     ResourceCategory,
     RoadmapStep,
@@ -283,6 +286,71 @@ class CareerResourceCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data['admin'] = self.context['request'].user
         return super().create(validated_data)
+
+
+# ===== Question bank serializers =====
+
+
+class QuestionCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = QuestionCategory
+        fields = ('id', 'name', 'description', 'qualification_tag', 'is_active', 'created_at')
+        read_only_fields = ('created_at',)
+
+
+class OptionTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OptionTemplate
+        fields = ('id', 'label', 'description', 'order')
+
+
+class OptionTemplateCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OptionTemplate
+        fields = ('label', 'description', 'order')
+
+
+class QuestionTemplateSerializer(serializers.ModelSerializer):
+    category = QuestionCategorySerializer(read_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(
+        queryset=QuestionCategory.objects.filter(is_active=True),
+        source='category',
+        write_only=True
+    )
+    options = OptionTemplateSerializer(many=True)
+
+    class Meta:
+        model = QuestionTemplate
+        fields = ('id', 'category', 'category_id', 'prompt', 'order', 'is_active', 'options', 'created_at')
+        read_only_fields = ('created_at',)
+
+
+class QuestionTemplateCreateSerializer(serializers.ModelSerializer):
+    options = OptionTemplateCreateSerializer(many=True)
+
+    class Meta:
+        model = QuestionTemplate
+        fields = ('category', 'prompt', 'order', 'is_active', 'options')
+
+    def create(self, validated_data):
+        options_data = validated_data.pop('options')
+        template = QuestionTemplate.objects.create(**validated_data)
+        for option_data in options_data:
+            OptionTemplate.objects.create(question=template, **option_data)
+        return template
+
+    def update(self, instance, validated_data):
+        # Simple update: replace options if provided
+        options_data = validated_data.pop('options', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        if options_data is not None:
+            instance.options.all().delete()
+            for option_data in options_data:
+                OptionTemplate.objects.create(question=instance, **option_data)
+        return instance
 
 
 class StudentResourceProgressSerializer(serializers.ModelSerializer):

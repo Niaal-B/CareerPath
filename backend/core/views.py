@@ -12,6 +12,8 @@ from .models import (
     CareerResource,
     Option,
     PersonalizedTest,
+    QuestionCategory,
+    QuestionTemplate,
     Question,
     ResourceCategory,
     RoadmapStep,
@@ -27,6 +29,9 @@ from .serializers import (
     CareerResourceCreateSerializer,
     CareerResourceSerializer,
     CustomTokenObtainPairSerializer,
+    QuestionCategorySerializer,
+    QuestionTemplateCreateSerializer,
+    QuestionTemplateSerializer,
     PersonalizedTestSerializer,
     QuestionCreateSerializer,
     QuestionSerializer,
@@ -675,6 +680,139 @@ class AdminResourceDetailView(generics.RetrieveUpdateDestroyAPIView):
         # Soft delete by setting is_active to False
         instance.is_active = False
         instance.save()
+
+
+# ========== QUESTION BANK VIEWS ==========
+
+
+class AdminQuestionCategoryListView(generics.ListCreateAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = QuestionCategorySerializer
+
+    def get_queryset(self):
+        if self.request.user.role != User.Roles.ADMIN:
+            raise PermissionDenied("Only admins can view question categories.")
+        include_inactive = self.request.query_params.get('include_inactive') == 'true'
+        queryset = QuestionCategory.objects.all().order_by('name')
+        if not include_inactive:
+            queryset = queryset.filter(is_active=True)
+        return queryset
+
+
+class AdminQuestionCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = QuestionCategorySerializer
+
+    def get_queryset(self):
+        if self.request.user.role != User.Roles.ADMIN:
+            raise PermissionDenied("Only admins can manage question categories.")
+        return QuestionCategory.objects.all()
+
+    def perform_destroy(self, instance):
+        # Soft delete to keep history
+        instance.is_active = False
+        instance.save()
+
+
+class AdminQuestionTemplateListView(generics.ListCreateAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return QuestionTemplateCreateSerializer
+        return QuestionTemplateSerializer
+
+    def get_queryset(self):
+        if self.request.user.role != User.Roles.ADMIN:
+            raise PermissionDenied("Only admins can view question templates.")
+        include_inactive = self.request.query_params.get('include_inactive') == 'true'
+        category_id = self.request.query_params.get('category_id')
+        queryset = QuestionTemplate.objects.select_related('category').prefetch_related('options').order_by('order', 'id')
+        if not include_inactive:
+            queryset = queryset.filter(is_active=True, category__is_active=True)
+        if category_id:
+            queryset = queryset.filter(category_id=category_id)
+        qualification_tag = self.request.query_params.get('qualification_tag')
+        if qualification_tag:
+            queryset = queryset.filter(category__qualification_tag=qualification_tag)
+        return queryset
+
+
+class AdminQuestionTemplateDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get_serializer_class(self):
+        if self.request.method in ['PUT', 'PATCH']:
+            return QuestionTemplateCreateSerializer
+        return QuestionTemplateSerializer
+
+    def get_queryset(self):
+        if self.request.user.role != User.Roles.ADMIN:
+            raise PermissionDenied("Only admins can manage question templates.")
+        return QuestionTemplate.objects.select_related('category').prefetch_related('options')
+
+    def perform_destroy(self, instance):
+        instance.is_active = False
+        instance.save()
+
+
+class AdminTestAddTemplatesView(APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request, test_id):
+        if request.user.role != User.Roles.ADMIN:
+            raise PermissionDenied("Only admins can add templates to tests.")
+        try:
+            test = PersonalizedTest.objects.select_related('request', 'request__student').prefetch_related('questions').get(id=test_id)
+        except PersonalizedTest.DoesNotExist:
+            raise PermissionDenied("Test not found.")
+
+        category_ids = request.data.get('category_ids', [])
+        template_ids = request.data.get('template_ids', [])
+        if not category_ids and not template_ids:
+            return Response({'error': 'Provide category_ids or template_ids.'}, status=400)
+
+        templates_qs = QuestionTemplate.objects.filter(is_active=True, category__is_active=True)
+        filters = models.Q()
+        if category_ids:
+            filters |= models.Q(category_id__in=category_ids)
+        if template_ids:
+            filters |= models.Q(id__in=template_ids)
+        templates_qs = templates_qs.filter(filters).prefetch_related('options')
+
+        existing_template_ids = set(
+            test.questions.exclude(template__isnull=True).values_list('template_id', flat=True)
+        )
+        next_order = test.questions.aggregate(max_order=models.Max('order')).get('max_order') or 0
+
+        created_questions = 0
+        for template in templates_qs.order_by('order', 'id'):
+            if template.id in existing_template_ids:
+                continue
+            next_order += 1
+            question = Question.objects.create(
+                personalized_test=test,
+                template=template,
+                prompt=template.prompt,
+                order=next_order,
+            )
+            for option in template.options.all():
+                Option.objects.create(
+                    question=question,
+                    label=option.label,
+                    description=option.description,
+                    order=option.order,
+                )
+            created_questions += 1
+
+        if created_questions == 0:
+            return Response({'message': 'No new questions were added (possibly already copied).'})
+
+        return Response({
+            'message': 'Questions copied successfully.',
+            'added_questions': created_questions,
+            'test': PersonalizedTestSerializer(test).data,
+        }, status=201)
 
 
 class StudentResourceListView(APIView):

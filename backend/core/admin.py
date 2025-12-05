@@ -6,7 +6,10 @@ from .models import (
     CareerRecommendation,
     CareerResource,
     Option,
+    OptionTemplate,
     PersonalizedTest,
+    QuestionCategory,
+    QuestionTemplate,
     Question,
     ResourceCategory,
     RoadmapStep,
@@ -59,11 +62,33 @@ class OptionInline(admin.TabularInline):
     extra = 0
 
 
+class OptionTemplateInline(admin.TabularInline):
+    model = OptionTemplate
+    extra = 0
+
+
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
     list_display = ('prompt', 'personalized_test', 'order')
     list_filter = ('personalized_test',)
     inlines = [OptionInline]
+
+
+@admin.register(QuestionCategory)
+class QuestionCategoryAdmin(admin.ModelAdmin):
+    list_display = ('name', 'qualification_tag', 'is_active', 'created_at')
+    list_filter = ('is_active',)
+    search_fields = ('name', 'qualification_tag')
+    ordering = ('name',)
+
+
+@admin.register(QuestionTemplate)
+class QuestionTemplateAdmin(admin.ModelAdmin):
+    list_display = ('prompt', 'category', 'order', 'is_active', 'created_at')
+    list_filter = ('category', 'is_active')
+    search_fields = ('prompt', 'category__name')
+    ordering = ('category', 'order', 'id')
+    inlines = [OptionTemplateInline]
 
 
 @admin.register(PersonalizedTest)

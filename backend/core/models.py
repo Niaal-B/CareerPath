@@ -84,6 +84,14 @@ class PersonalizedTest(models.Model):
 
 class Question(models.Model):
     personalized_test = models.ForeignKey(PersonalizedTest, on_delete=models.CASCADE, related_name='questions')
+    template = models.ForeignKey(
+        'QuestionTemplate',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='question_instances',
+        help_text="Source template if this question was copied from the bank.",
+    )
     prompt = models.TextField()
     order = models.PositiveIntegerField(default=0)
 
@@ -235,3 +243,66 @@ class StudentResourceProgress(models.Model):
 
     def __str__(self):
         return f"{self.student.email} - {self.resource.title} ({self.get_status_display()})"
+
+
+class QuestionCategory(models.Model):
+    """
+    Admin-defined buckets to group reusable question templates (e.g. Plus Two, Engineering).
+    """
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
+    qualification_tag = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Optional tag to match student qualification (e.g. plus_two, engineering).",
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name_plural = "Question Categories"
+
+    def __str__(self):
+        return self.name
+
+
+class QuestionTemplate(models.Model):
+    """
+    Reusable question that can be copied into a personalized test.
+    """
+    category = models.ForeignKey(
+        QuestionCategory,
+        on_delete=models.CASCADE,
+        related_name="questions",
+    )
+    prompt = models.TextField()
+    order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+
+    def __str__(self):
+        return f"{self.category.name} · {self.prompt[:40]}..."
+
+
+class OptionTemplate(models.Model):
+    """
+    Reusable options for a question template.
+    """
+    question = models.ForeignKey(
+        QuestionTemplate,
+        on_delete=models.CASCADE,
+        related_name="options",
+    )
+    label = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["order", "id"]
+
+    def __str__(self):
+        return f"Option {self.order} for template {self.question_id}"
