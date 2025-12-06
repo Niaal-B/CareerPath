@@ -9,6 +9,7 @@ export type AuthUser = {
   first_name: string
   last_name: string
   role: 'student' | 'admin'
+  phone?: string
   qualification?: string
   interests?: string
 }

@@ -12,6 +12,7 @@ export default function RegisterPage() {
     last_name: '',
     email: '',
     password: '',
+    phone: '',
     qualification: '',
     interests: '',
   })
@@ -28,14 +29,42 @@ export default function RegisterPage() {
     setLoading(true)
     setError(null)
     setSuccess(null)
+    const phonePattern = /^\+?[1-9]\d{7,14}$/
+    const namePattern = /^[A-Za-z][A-Za-z\s'-]{1,48}$/
+    if (!namePattern.test(form.first_name) || !namePattern.test(form.last_name)) {
+      setError('Names must be 2-50 chars, letters/spaces/hyphens/apostrophes only.')
+      setLoading(false)
+      return
+    }
+    if (!phonePattern.test(form.phone)) {
+      setError('Enter a valid phone number (e.g., +911234567890).')
+      setLoading(false)
+      return
+    }
+    const requiredFields: Array<keyof typeof form> = [
+      'first_name',
+      'last_name',
+      'email',
+      'password',
+      'phone',
+      'qualification',
+      'interests',
+    ]
+    const missing = requiredFields.find((field) => !form[field].trim())
+    if (missing) {
+      setError('Please fill in all required fields.')
+      setLoading(false)
+      return
+    }
     try {
       await registerStudent(form)
       setSuccess('Registration successful! You can now sign in.')
       setTimeout(() => navigate('/auth/login'), 1200)
-    } catch (err: any) {
-      const detail = err?.response?.data
-      if (typeof detail === 'object') {
-        const firstError = Object.values(detail)[0] as string[] | string
+    } catch (err: unknown) {
+      const apiErr = err as { response?: { data?: unknown } }
+      const detail = apiErr?.response?.data
+      if (detail && typeof detail === 'object') {
+        const firstError = Object.values(detail as Record<string, string | string[]>)[0]
         setError(Array.isArray(firstError) ? firstError[0] : firstError)
       } else {
         setError('Unable to register. Please review your details.')
@@ -65,6 +94,8 @@ export default function RegisterPage() {
                     value={form.first_name}
                     onChange={(e) => updateField('first_name', e.target.value)}
                     className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm focus:border-brand focus:outline-none"
+                  pattern="^[A-Za-z][A-Za-z\s'-]{1,48}$"
+                  title="2-50 chars, letters/spaces/hyphens/apostrophes only"
                     required
                   />
                 </div>
@@ -74,9 +105,23 @@ export default function RegisterPage() {
                     value={form.last_name}
                     onChange={(e) => updateField('last_name', e.target.value)}
                     className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm focus:border-brand focus:outline-none"
+                  pattern="^[A-Za-z][A-Za-z\s'-]{1,48}$"
+                  title="2-50 chars, letters/spaces/hyphens/apostrophes only"
                     required
                   />
                 </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-ink">Phone</label>
+                <input
+                  type="tel"
+                  value={form.phone}
+                  onChange={(e) => updateField('phone', e.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm focus:border-brand focus:outline-none"
+                  placeholder="+911234567890"
+                  required
+                />
+                <p className="mt-1 text-xs text-muted">Use country code, digits only.</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-ink">Email</label>

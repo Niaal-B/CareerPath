@@ -123,6 +123,50 @@ export const fetchAdminRecommendations = async () => {
   return response.data
 }
 
+// ========== QUESTION BANK ==========
+
+export const fetchQuestionCategories = async (params?: { include_inactive?: boolean }) => {
+  const response = await api.get('admin/question-categories/', { params })
+  return response.data
+}
+
+export const fetchQuestionTemplates = async (params?: {
+  category_id?: number
+  qualification_tag?: string
+  include_inactive?: boolean
+}) => {
+  const response = await api.get('admin/question-templates/', { params })
+  return response.data
+}
+
+export const createQuestionCategory = async (payload: {
+  name: string
+  description?: string
+  qualification_tag?: string
+}) => {
+  const response = await api.post('admin/question-categories/', payload)
+  return response.data
+}
+
+export const createQuestionTemplate = async (payload: {
+  category: number
+  prompt: string
+  order?: number
+  is_active?: boolean
+  options: Array<{ label: string; description?: string; order?: number }>
+}) => {
+  const response = await api.post('admin/question-templates/', payload)
+  return response.data
+}
+
+export const addTemplatesToTest = async (
+  testId: number,
+  payload: { category_ids?: number[]; template_ids?: number[] }
+) => {
+  const response = await api.post(`admin/tests/${testId}/add-templates/`, payload)
+  return response.data
+}
+
 export const fetchTestAnswers = async (testId: number) => {
   const response = await api.get(`admin/tests/${testId}/answers/`)
   return response.data
@@ -150,7 +194,7 @@ export const createResourceCategory = async (payload: { name: string; descriptio
 }
 
 export const fetchAdminResources = async (recommendationId?: number, categoryId?: number) => {
-  const params: any = {}
+  const params: Record<string, number> = {}
   if (recommendationId) params.recommendation_id = recommendationId
   if (categoryId) params.category_id = categoryId
   const response = await api.get('admin/resources/', { params })
@@ -172,8 +216,7 @@ export const createResource = async (payload: {
   is_active?: boolean
 }) => {
   const formData = new FormData()
-  Object.keys(payload).forEach((key) => {
-    const value = payload[key as keyof typeof payload]
+  ;(Object.entries(payload) as [keyof typeof payload, (typeof payload)[keyof typeof payload]][]).forEach(([key, value]) => {
     if (value !== undefined && value !== null) {
       if (key === 'file' && value instanceof File) {
         formData.append(key, value)
@@ -203,8 +246,7 @@ export const updateResource = async (resourceId: number, payload: Partial<{
   is_active?: boolean
 }>) => {
   const formData = new FormData()
-  Object.keys(payload).forEach((key) => {
-    const value = payload[key as keyof typeof payload]
+  ;(Object.entries(payload) as [keyof typeof payload, (typeof payload)[keyof typeof payload]][]).forEach(([key, value]) => {
     if (value !== undefined && value !== null) {
       if (key === 'file' && value instanceof File) {
         formData.append(key, value)
@@ -225,8 +267,8 @@ export const deleteResource = async (resourceId: number) => {
 }
 
 export const fetchStudentResources = async (categoryId?: number, resourceType?: string) => {
-  const params: any = {}
-  if (categoryId) params.category_id = categoryId
+  const params: Record<string, string | number> = {}
+  if (categoryId !== undefined) params.category_id = categoryId
   if (resourceType) params.resource_type = resourceType
   const response = await api.get('student/resources/', { params })
   return response.data

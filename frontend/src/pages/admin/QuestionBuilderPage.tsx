@@ -1,7 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
-import { assignTest, createQuestion, fetchPersonalizedTest, fetchPersonalizedTestByRequest } from '../../services/dashboard'
+import {
+  addTemplatesToTest,
+  assignTest,
+  createQuestion,
+  fetchPersonalizedTest,
+  fetchPersonalizedTestByRequest,
+  fetchQuestionCategories,
+  fetchQuestionTemplates,
+} from '../../services/dashboard'
 
 type Question = {
   id: number
@@ -22,6 +30,19 @@ type PersonalizedTest = {
   questions: Question[]
 }
 
+type QuestionCategory = {
+  id: number
+  name: string
+  qualification_tag?: string
+}
+
+type QuestionTemplate = {
+  id: number
+  prompt: string
+  category: QuestionCategory
+  options: Array<{ id: number; label: string; description: string; order: number }>
+}
+
 export default function QuestionBuilderPage() {
   const [searchParams] = useSearchParams()
   const testIdParam = searchParams.get('testId')
@@ -37,6 +58,15 @@ export default function QuestionBuilderPage() {
     options: [{ label: '', description: '', order: 0 }],
   })
   const [assigning, setAssigning] = useState(false)
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false)
+  const [categories, setCategories] = useState<QuestionCategory[]>([])
+  const [templates, setTemplates] = useState<QuestionTemplate[]>([])
+  const [templatesLoading, setTemplatesLoading] = useState(false)
+  const [templatesError, setTemplatesError] = useState<string | null>(null)
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | 'all'>('all')
+  const [selectedTemplateIds, setSelectedTemplateIds] = useState<Set<number>>(new Set())
+  const [selectAllChecked, setSelectAllChecked] = useState(false)
+  const [addingFromTemplates, setAddingFromTemplates] = useState(false)
 
   useEffect(() => {
     const loadTest = async () => {
@@ -66,6 +96,100 @@ export default function QuestionBuilderPage() {
     }
     loadTest()
   }, [testIdParam, requestIdParam])
+
+  useEffect(() => {
+    const preload = async () => {
+      try {
+        setTemplatesLoading(true)
+        const [cats, temps] = await Promise.all([
+          fetchQuestionCategories({ include_inactive: false }),
+          fetchQuestionTemplates(),
+        ])
+        setCategories(cats || [])
+        setTemplates(temps || [])
+      } catch (err: unknown) {
+        const error = err as { response?: { data?: { detail?: string } } }
+        setTemplatesError(error?.response?.data?.detail || 'Unable to load templates.')
+      } finally {
+        setTemplatesLoading(false)
+      }
+    }
+    if (showTemplatePicker) {
+      preload()
+    }
+  }, [showTemplatePicker, test?.request.qualification_snapshot])
+
+  const handleCategoryChange = async (value: string) => {
+    const categoryId = value === 'all' ? 'all' : parseInt(value)
+    setSelectedCategoryId(categoryId)
+    setSelectedTemplateIds(new Set())
+    setSelectAllChecked(false)
+    try {
+      setTemplatesLoading(true)
+      const temps = await fetchQuestionTemplates({
+        category_id: categoryId === 'all' ? undefined : categoryId,
+      })
+      setTemplates(temps || [])
+      setTemplatesError(null)
+      setSelectAllChecked(false)
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { detail?: string } } }
+      setTemplatesError(error?.response?.data?.detail || 'Unable to load templates.')
+    } finally {
+      setTemplatesLoading(false)
+    }
+  }
+
+  const toggleTemplateSelection = (templateId: number) => {
+    setSelectedTemplateIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(templateId)) next.delete(templateId)
+      else next.add(templateId)
+      const eligibleCount = templates.filter(
+        (t) => selectedCategoryId === 'all' || t.category?.id === selectedCategoryId,
+      ).length
+      setSelectAllChecked(eligibleCount > 0 && next.size === eligibleCount)
+      return next
+    })
+  }
+
+  const handleAddTemplatesToTest = async () => {
+    if (!test) return
+    if (selectedCategoryId === 'all' && selectedTemplateIds.size === 0) {
+      setTemplatesError('Pick a category or at least one template.')
+      return
+    }
+    try {
+      setAddingFromTemplates(true)
+      const payload: { category_ids?: number[]; template_ids?: number[] } = {}
+      if (selectedCategoryId !== 'all') payload.category_ids = [selectedCategoryId]
+      if (selectedTemplateIds.size > 0) payload.template_ids = Array.from(selectedTemplateIds)
+      await addTemplatesToTest(test.id, payload)
+      const updatedTest = await fetchPersonalizedTest(test.id)
+      setTest(updatedTest)
+      setShowTemplatePicker(false)
+      setSelectedTemplateIds(new Set())
+      setTemplatesError(null)
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string; detail?: string } } }
+      setTemplatesError(error?.response?.data?.error || error?.response?.data?.detail || 'Failed to add templates.')
+    } finally {
+      setAddingFromTemplates(false)
+    }
+  }
+
+  const handleToggleSelectAll = () => {
+    if (selectAllChecked) {
+      setSelectedTemplateIds(new Set())
+      setSelectAllChecked(false)
+      return
+    }
+    const eligibleTemplates = templates.filter(
+      (t) => selectedCategoryId === 'all' || t.category?.id === selectedCategoryId,
+    )
+    setSelectedTemplateIds(new Set(eligibleTemplates.map((t) => t.id)))
+    setSelectAllChecked(true)
+  }
 
   const handleAddOption = () => {
     setNewQuestion((prev) => ({
@@ -174,6 +298,9 @@ export default function QuestionBuilderPage() {
           <p className="mt-1 text-sm text-slate-300">
             For: {test.request.student.email} · Status: {test.status}
           </p>
+          <p className="mt-1 text-xs text-slate-400">
+            Interests: {test.request.interests_snapshot || '—'} · Qualification: {test.request.qualification_snapshot || '—'}
+          </p>
         </div>
         {test.questions.length > 0 && test.status !== 'assigned' && (
           <button
@@ -189,6 +316,130 @@ export default function QuestionBuilderPage() {
       {error && (
         <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
           {error}
+        </div>
+      )}
+
+      {test.status !== 'assigned' && (
+        <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-lg shadow-black/30">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Question bank</p>
+              <p className="text-sm text-slate-200">Import predefined questions by category.</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowTemplatePicker((prev) => !prev)}
+                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+              >
+                {showTemplatePicker ? 'Hide templates' : 'Add from templates'}
+              </button>
+            </div>
+          </div>
+
+          {showTemplatePicker && (
+            <div className="mt-4 space-y-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="flex items-center gap-3">
+                  <label className="text-sm text-white">Category</label>
+                  <select
+                    value={selectedCategoryId}
+                    onChange={(e) => handleCategoryChange(e.target.value)}
+                    className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:border-brand focus:outline-none"
+                  >
+                    <option value="all">All categories</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name} {cat.qualification_tag ? `(${cat.qualification_tag})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="select-all-templates"
+                    type="checkbox"
+                    className="h-4 w-4 accent-brand"
+                    checked={selectAllChecked}
+                    onChange={handleToggleSelectAll}
+                    disabled={templatesLoading || templates.length === 0}
+                  />
+                  <label htmlFor="select-all-templates" className="text-xs text-slate-300">
+                    Select all in view
+                  </label>
+                </div>
+                <div className="text-xs text-slate-400">
+                  Auto-filtering by qualification: {test.request.qualification_snapshot || 'N/A'}
+                </div>
+              </div>
+
+              {templatesError && (
+                <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                  {templatesError}
+                </div>
+              )}
+
+              <div className="max-h-80 space-y-3 overflow-y-auto rounded-2xl border border-white/10 bg-black/10 p-3">
+                {templatesLoading && (
+                  <div className="flex items-center gap-2 text-sm text-slate-300">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+                    Loading templates...
+                  </div>
+                )}
+                {!templatesLoading && templates.length === 0 && (
+                  <p className="text-sm text-slate-400">No templates found for this filter.</p>
+                )}
+                {!templatesLoading &&
+                  templates.map((template) => {
+                    const disabledByCategory =
+                      selectedCategoryId !== 'all' && template.category?.id !== selectedCategoryId
+                    return (
+                      <label
+                        key={template.id}
+                        className="flex cursor-pointer gap-3 rounded-2xl border border-white/10 bg-white/5 p-3 transition hover:border-brand/50"
+                      >
+                        <input
+                          type="checkbox"
+                          className="mt-1 h-4 w-4 accent-brand"
+                          checked={selectedTemplateIds.has(template.id)}
+                          onChange={() => toggleTemplateSelection(template.id)}
+                          disabled={disabledByCategory}
+                        />
+                        <div className="space-y-1 opacity-100">
+                          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-400">
+                            <span>{template.category?.name}</span>
+                            {template.category?.qualification_tag && (
+                              <span className="rounded-full border border-white/10 bg-white/10 px-2 py-0.5 text-[10px]">
+                                {template.category.qualification_tag}
+                              </span>
+                            )}
+                          </div>
+                          <p className="font-semibold text-white">{template.prompt}</p>
+                          <ul className="text-xs text-slate-300">
+                            {template.options.map((opt) => (
+                              <li key={opt.id}>• {opt.label}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </label>
+                    )
+                  })}
+              </div>
+
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-slate-400">
+                  Selected templates: {selectedTemplateIds.size}{' '}
+                  {selectedCategoryId !== 'all' ? `(category ${selectedCategoryId})` : ''}
+                </p>
+                <button
+                  onClick={handleAddTemplatesToTest}
+                  disabled={addingFromTemplates}
+                  className="rounded-full border border-brand bg-brand/20 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand/30 disabled:opacity-50"
+                >
+                  {addingFromTemplates ? 'Adding...' : 'Add selected to test'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

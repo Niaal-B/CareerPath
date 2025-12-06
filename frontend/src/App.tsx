@@ -8,6 +8,7 @@ import LoginPage from './pages/auth/LoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import QuestionBuilderPage from './pages/admin/QuestionBuilderPage'
+import QuestionBankPage from './pages/admin/QuestionBankPage.tsx'
 import RequestsPage from './pages/admin/RequestsPage'
 import ResourcesPage from './pages/admin/ResourcesPage'
 import ReviewsPage from './pages/admin/ReviewsPage'
@@ -100,6 +101,16 @@ function App() {
             <ProtectedRoute role="admin">
               <AdminLayout>
                 <QuestionBuilderPage />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/question-bank"
+          element={
+            <ProtectedRoute role="admin">
+              <AdminLayout>
+                <QuestionBankPage />
               </AdminLayout>
             </ProtectedRoute>
           }

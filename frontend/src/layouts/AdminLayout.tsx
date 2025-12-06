@@ -8,6 +8,7 @@ const adminLinks = [
   { label: 'Dashboard', to: '/admin', icon: '📈' },
   { label: 'Requests', to: '/admin/requests', icon: '🧾' },
   { label: 'Question Builder', to: '/admin/questions', icon: '✍️' },
+  { label: 'Question Bank', to: '/admin/question-bank', icon: '🗂️' },
   { label: 'Reviews', to: '/admin/reviews', icon: '🧐' },
   { label: 'Resources', to: '/admin/resources', icon: '📚' },
 ]

@@ -132,42 +132,7 @@ export default function LandingPage() {
                 ))}
               </div>
             </div>
-            <div className="relative">
-              <div className="absolute -left-6 -top-6 h-20 w-20 rounded-3xl bg-white/70 blur-2xl" />
-              <div className="absolute -right-4 bottom-10 h-32 w-32 rounded-full bg-accent/40 blur-3xl" />
-              <div className="rounded-3xl border border-white/60 bg-white/80 p-8 shadow-glass backdrop-blur">
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between rounded-2xl border border-slate-100 p-4">
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-muted">Current focus</p>
-                      <p className="font-semibold text-ink">Design MCQs for Aditya (Grade 12)</p>
-                    </div>
-                    <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand">
-                      In progress
-                    </span>
-                  </div>
-                  <ol className="space-y-4 text-sm text-slate-600">
-                    <li className="rounded-2xl border border-slate-100 bg-white/70 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-brand">Step 1</p>
-                      <p className="font-medium text-ink">Collect student interests & aspirations</p>
-                    </li>
-                    <li className="rounded-2xl border border-slate-100 bg-white/70 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-brand">Step 2</p>
-                      <p className="font-medium text-ink">Craft 12 subjective MCQs</p>
-                    </li>
-                    <li className="rounded-2xl border border-slate-100 bg-white/70 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-brand">Step 3</p>
-                      <p className="font-medium text-ink">Review selections, map roadmap</p>
-                    </li>
-                  </ol>
-                  <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-                    <p className="text-sm text-muted">Next slot:</p>
-                    <p className="text-2xl font-display text-ink">Friday, 4:00 PM IST</p>
-                    <p className="text-sm text-muted">Average turnaround &lt; 48 hours</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+           
           </section>
 
           <section id="features" className="space-y-6">
