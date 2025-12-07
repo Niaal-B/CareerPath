@@ -6,6 +6,8 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import (
     CareerRecommendation,
     CareerResource,
+    Company,
+    JobRecommendation,
     Option,
     OptionTemplate,
     PersonalizedTest,
@@ -196,14 +198,26 @@ class RoadmapStepCreateSerializer(serializers.ModelSerializer):
 class CareerRecommendationSerializer(serializers.ModelSerializer):
     steps = RoadmapStepSerializer(many=True)
     resources = serializers.SerializerMethodField()
+    job_recommendations = serializers.SerializerMethodField()
+    companies = serializers.SerializerMethodField()
 
     class Meta:
         model = CareerRecommendation
-        fields = ('id', 'career_name', 'summary', 'created_at', 'steps', 'resources')
+        fields = ('id', 'career_name', 'summary', 'companies', 'created_at', 'steps', 'resources', 'job_recommendations')
+    
+    def get_companies(self, obj):
+        # Split the companies text by newlines and remove any empty lines
+        if obj.companies:
+            return [company.strip() for company in obj.companies.split('\n') if company.strip()]
+        return []
 
     def get_resources(self, obj):
         resources = obj.resources.filter(is_active=True).order_by('order', 'created_at')
         return CareerResourceSerializer(resources, many=True, context=self.context).data
+
+    def get_job_recommendations(self, obj):
+        jobs = obj.job_recommendations.filter(is_active=True).order_by('order', 'created_at')
+        return JobRecommendationSerializer(jobs, many=True, context=self.context).data
 
 
 class CareerRecommendationCreateSerializer(serializers.ModelSerializer):
@@ -211,7 +225,10 @@ class CareerRecommendationCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CareerRecommendation
-        fields = ('career_name', 'summary', 'steps')
+        fields = ('career_name', 'summary', 'companies', 'steps')
+        extra_kwargs = {
+            'companies': {'required': False, 'allow_blank': True}
+        }
 
     def create(self, validated_data):
         steps_data = validated_data.pop('steps')
@@ -219,6 +236,78 @@ class CareerRecommendationCreateSerializer(serializers.ModelSerializer):
         for step_data in steps_data:
             RoadmapStep.objects.create(recommendation=recommendation, **step_data)
         return recommendation
+
+
+class CompanySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Company
+        fields = (
+            'id',
+            'name',
+            'email',
+            'website',
+            'description',
+            'location',
+            'industry',
+            'is_active',
+            'created_at',
+        )
+        read_only_fields = ('created_at',)
+
+
+class JobRecommendationSerializer(serializers.ModelSerializer):
+    company = CompanySerializer(read_only=True)
+    company_id = serializers.PrimaryKeyRelatedField(
+        queryset=Company.objects.filter(is_active=True),
+        source='company',
+        write_only=True
+    )
+
+    class Meta:
+        model = JobRecommendation
+        fields = (
+            'id',
+            'career_recommendation',
+            'company',
+            'company_id',
+            'job_title',
+            'job_description',
+            'requirements',
+            'salary_range',
+            'job_type',
+            'application_url',
+            'is_active',
+            'order',
+            'created_at',
+        )
+        read_only_fields = ('created_at',)
+
+
+class JobRecommendationCreateSerializer(serializers.ModelSerializer):
+    career_recommendation_id = serializers.PrimaryKeyRelatedField(
+        queryset=CareerRecommendation.objects.all(),
+        source='career_recommendation',
+        write_only=True,
+        required=True
+    )
+    
+    class Meta:
+        model = JobRecommendation
+        fields = (
+            'career_recommendation_id',
+            'company',
+            'job_title',
+            'job_description',
+            'requirements',
+            'salary_range',
+            'job_type',
+            'application_url',
+            'order',
+            'is_active',
+        )
+        extra_kwargs = {
+            'career_recommendation_id': {'required': True}
+        }
 
 
 class ResourceCategorySerializer(serializers.ModelSerializer):

@@ -5,6 +5,8 @@ from .forms import CustomUserChangeForm, CustomUserCreationForm
 from .models import (
     CareerRecommendation,
     CareerResource,
+    Company,
+    JobRecommendation,
     Option,
     OptionTemplate,
     PersonalizedTest,
@@ -101,6 +103,22 @@ class PersonalizedTestAdmin(admin.ModelAdmin):
 @admin.register(CareerRecommendation)
 class CareerRecommendationAdmin(admin.ModelAdmin):
     list_display = ('id', 'personalized_test', 'career_name', 'created_at')
+    search_fields = ('career_name', 'summary', 'companies')
+    list_filter = ('created_at',)
+    readonly_fields = ('created_at',)
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('personalized_test', 'admin', 'career_name', 'summary')
+        }),
+        ('Companies', {
+            'fields': ('companies',),
+            'description': 'Enter one company name per line. These will be displayed as tags to the student.'
+        }),
+        ('Metadata', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
 
 
 @admin.register(RoadmapStep)
@@ -156,3 +174,53 @@ class StudentResourceProgressAdmin(admin.ModelAdmin):
     list_filter = ('status', 'is_favorite')
     search_fields = ('student__email', 'resource__title')
     readonly_fields = ('started_at', 'completed_at', 'updated_at')
+
+
+@admin.register(Company)
+class CompanyAdmin(admin.ModelAdmin):
+    list_display = ('name', 'email', 'industry', 'location', 'is_active', 'created_at')
+    list_filter = ('is_active', 'industry')
+    search_fields = ('name', 'email', 'description')
+    list_editable = ('is_active',)
+    ordering = ('name',)
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('name', 'email', 'website', 'description')
+        }),
+        ('Location & Industry', {
+            'fields': ('location', 'industry')
+        }),
+        ('Status', {
+            'fields': ('is_active',)
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(JobRecommendation)
+class JobRecommendationAdmin(admin.ModelAdmin):
+    list_display = ('job_title', 'company', 'career_recommendation', 'job_type', 'is_active', 'order')
+    list_filter = ('job_type', 'is_active', 'company')
+    search_fields = ('job_title', 'company__name', 'job_description')
+    list_editable = ('is_active', 'order')
+    ordering = ('order', 'created_at')
+    fieldsets = (
+        ('Job Information', {
+            'fields': ('career_recommendation', 'company', 'job_title', 'job_description')
+        }),
+        ('Job Details', {
+            'fields': ('requirements', 'salary_range', 'job_type', 'application_url')
+        }),
+        ('Display', {
+            'fields': ('order', 'is_active')
+        }),
+        ('Metadata', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
+    readonly_fields = ('created_at',)

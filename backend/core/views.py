@@ -1,8 +1,8 @@
 from django.db import models
 from django.http import HttpResponse
 from django.utils import timezone
-from rest_framework import generics, permissions
-from rest_framework.exceptions import PermissionDenied
+from rest_framework import generics, permissions, status
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -10,6 +10,8 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from .models import (
     CareerRecommendation,
     CareerResource,
+    Company,
+    JobRecommendation,
     Option,
     PersonalizedTest,
     QuestionCategory,
@@ -28,7 +30,10 @@ from .serializers import (
     CareerRecommendationSerializer,
     CareerResourceCreateSerializer,
     CareerResourceSerializer,
+    CompanySerializer,
     CustomTokenObtainPairSerializer,
+    JobRecommendationCreateSerializer,
+    JobRecommendationSerializer,
     QuestionCategorySerializer,
     QuestionTemplateCreateSerializer,
     QuestionTemplateSerializer,
@@ -940,3 +945,91 @@ class StudentMyResourcesView(APIView):
             resources_data.append(resource_data)
         
         return Response({'resources': resources_data})
+
+
+# ========== COMPANY & JOB RECOMMENDATION VIEWS ==========
+
+class AdminCompanyListView(generics.ListCreateAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = CompanySerializer
+
+    def get_queryset(self):
+        if self.request.user.role != User.Roles.ADMIN:
+            raise PermissionDenied("Only admins can view companies.")
+        include_inactive = self.request.query_params.get('include_inactive') == 'true'
+        queryset = Company.objects.all().order_by('name')
+        if not include_inactive:
+            queryset = queryset.filter(is_active=True)
+        return queryset
+
+
+class AdminCompanyDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = CompanySerializer
+
+    def get_queryset(self):
+        if self.request.user.role != User.Roles.ADMIN:
+            raise PermissionDenied("Only admins can manage companies.")
+        return Company.objects.all()
+
+    def perform_destroy(self, instance):
+        # Soft delete
+        instance.is_active = False
+        instance.save()
+
+
+class AdminJobRecommendationListView(generics.ListCreateAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return JobRecommendationCreateSerializer
+        return JobRecommendationSerializer
+
+    def get_queryset(self):
+        if self.request.user.role != User.Roles.ADMIN:
+            raise PermissionDenied("Only admins can view job recommendations.")
+        queryset = JobRecommendation.objects.select_related('company', 'career_recommendation').filter(is_active=True)
+        
+        # Filter by career recommendation if provided
+        recommendation_id = self.request.query_params.get('recommendation_id')
+        if recommendation_id:
+            queryset = queryset.filter(career_recommendation_id=recommendation_id)
+        
+        return queryset.order_by('order', 'created_at')
+
+    def create(self, request, *args, **kwargs):
+        # Check if career_recommendation_id is in the request data
+        if 'career_recommendation_id' not in request.data:
+            return Response(
+                {"career_recommendation_id": ["This field is required."]},
+                status=400  # Using the status code directly
+            )
+            
+        return super().create(request, *args, **kwargs)
+        
+    def perform_create(self, serializer):
+        if self.request.user.role != User.Roles.ADMIN:
+            raise PermissionDenied("Only admins can create job recommendations.")
+        
+        # Get career_recommendation from the validated data
+        career_recommendation = serializer.validated_data.get('career_recommendation')
+        if not career_recommendation:
+            raise serializers.ValidationError({"career_recommendation_id": "Invalid career recommendation ID."})
+        
+        serializer.save(career_recommendation=career_recommendation)
+
+
+class AdminJobRecommendationDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = JobRecommendationSerializer
+
+    def get_queryset(self):
+        if self.request.user.role != User.Roles.ADMIN:
+            raise PermissionDenied("Only admins can manage job recommendations.")
+        return JobRecommendation.objects.select_related('company', 'career_recommendation')
+
+    def perform_destroy(self, instance):
+        # Soft delete
+        instance.is_active = False
+        instance.save()

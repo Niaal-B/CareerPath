@@ -140,6 +140,7 @@ class CareerRecommendation(models.Model):
     admin = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='recommendations')
     career_name = models.CharField(max_length=255)
     summary = models.TextField()
+    companies = models.TextField(blank=True, help_text="List of companies (one per line) that offer this career")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -313,3 +314,67 @@ class OptionTemplate(models.Model):
 
     def __str__(self):
         return f"Option {self.order} for template {self.question_id}"
+
+
+class Company(models.Model):
+    """Company information that can be recommended to students"""
+    name = models.CharField(max_length=255)
+    email = models.EmailField(help_text="Company contact email")
+    website = models.URLField(blank=True, help_text="Company website URL")
+    description = models.TextField(blank=True, help_text="Company description/details")
+    location = models.CharField(max_length=255, blank=True, help_text="Company location")
+    industry = models.CharField(max_length=100, blank=True, help_text="Industry sector")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = "Companies"
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
+class JobRecommendation(models.Model):
+    """Job positions recommended for students based on their career recommendation"""
+    career_recommendation = models.ForeignKey(
+        CareerRecommendation,
+        on_delete=models.CASCADE,
+        related_name='job_recommendations',
+        help_text="Career recommendation this job is linked to"
+    )
+    company = models.ForeignKey(
+        Company,
+        on_delete=models.CASCADE,
+        related_name='job_recommendations',
+        help_text="Company offering this position"
+    )
+    job_title = models.CharField(max_length=255, help_text="Job position title")
+    job_description = models.TextField(help_text="Detailed job description")
+    requirements = models.TextField(blank=True, help_text="Job requirements/qualifications")
+    salary_range = models.CharField(max_length=100, blank=True, help_text="Salary range if available")
+    job_type = models.CharField(
+        max_length=50,
+        choices=[
+            ('full_time', 'Full Time'),
+            ('part_time', 'Part Time'),
+            ('contract', 'Contract'),
+            ('internship', 'Internship'),
+            ('remote', 'Remote'),
+        ],
+        default='full_time'
+    )
+    application_url = models.URLField(blank=True, help_text="Link to apply for this position")
+    is_active = models.BooleanField(default=True)
+    order = models.PositiveIntegerField(default=0, help_text="Order for display")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', 'created_at']
+        indexes = [
+            models.Index(fields=['career_recommendation', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.job_title} at {self.company.name}"

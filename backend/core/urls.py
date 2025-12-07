@@ -3,8 +3,12 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
     AdminCompletedTestsListView,
+    AdminCompanyDetailView,
+    AdminCompanyListView,
     AdminCreateRecommendationView,
     AdminDashboardView,
+    AdminJobRecommendationDetailView,
+    AdminJobRecommendationListView,
     AdminPersonalizedTestCreateView,
     AdminPersonalizedTestDetailView,
     AdminQuestionCategoryDetailView,
@@ -77,5 +81,9 @@ urlpatterns = [
     path('admin/resource-categories/<int:pk>/', AdminResourceCategoryDetailView.as_view(), name='admin-resource-category-detail'),
     path('admin/resources/', AdminResourceListView.as_view(), name='admin-resources'),
     path('admin/resources/<int:pk>/', AdminResourceDetailView.as_view(), name='admin-resource-detail'),
+    path('admin/companies/', AdminCompanyListView.as_view(), name='admin-companies'),
+    path('admin/companies/<int:pk>/', AdminCompanyDetailView.as_view(), name='admin-company-detail'),
+    path('admin/job-recommendations/', AdminJobRecommendationListView.as_view(), name='admin-job-recommendations'),
+    path('admin/job-recommendations/<int:pk>/', AdminJobRecommendationDetailView.as_view(), name='admin-job-recommendation-detail'),
 ]
 
