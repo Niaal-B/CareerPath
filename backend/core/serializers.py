@@ -7,6 +7,7 @@ from .models import (
     CareerRecommendation,
     CareerResource,
     Company,
+    CompanyCategory,
     JobRecommendation,
     Option,
     OptionTemplate,
@@ -238,7 +239,37 @@ class CareerRecommendationCreateSerializer(serializers.ModelSerializer):
         return recommendation
 
 
+class CompanyCategorySerializer(serializers.ModelSerializer):
+    companies_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = CompanyCategory
+        fields = (
+            'id',
+            'name',
+            'description',
+            'icon',
+            'is_active',
+            'order',
+            'companies_count',
+            'created_at',
+        )
+        read_only_fields = ('created_at',)
+    
+    def get_companies_count(self, obj):
+        return obj.companies.filter(is_active=True).count()
+
+
 class CompanySerializer(serializers.ModelSerializer):
+    category = CompanyCategorySerializer(read_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(
+        queryset=CompanyCategory.objects.filter(is_active=True),
+        source='category',
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
+    
     class Meta:
         model = Company
         fields = (
@@ -249,6 +280,8 @@ class CompanySerializer(serializers.ModelSerializer):
             'description',
             'location',
             'industry',
+            'category',
+            'category_id',
             'is_active',
             'created_at',
         )

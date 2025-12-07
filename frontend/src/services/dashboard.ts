@@ -292,3 +292,153 @@ export const fetchMyResources = async () => {
   const response = await api.get('student/my-resources/')
   return response.data
 }
+
+// ========== COMPANY & JOB RECOMMENDATION MANAGEMENT ==========
+
+export type CompanyCategory = {
+  id: number
+  name: string
+  description?: string
+  icon?: string
+  is_active: boolean
+  order: number
+  companies_count?: number
+  created_at: string
+}
+
+export type Company = {
+  id: number
+  name: string
+  email: string
+  website?: string
+  description?: string
+  location?: string
+  industry?: string
+  category?: CompanyCategory
+  category_id?: number
+  is_active: boolean
+  created_at: string
+}
+
+export type JobRecommendation = {
+  id: number
+  company: Company
+  job_title: string
+  job_description: string
+  requirements?: string
+  salary_range?: string
+  job_type: 'full_time' | 'part_time' | 'contract' | 'internship' | 'remote'
+  application_url?: string
+  is_active: boolean
+  order: number
+  created_at: string
+}
+
+export const fetchCompanyCategories = async (includeInactive = false) => {
+  const response = await api.get('admin/company-categories/', {
+    params: { include_inactive: includeInactive },
+  })
+  return response.data
+}
+
+export const createCompanyCategory = async (payload: {
+  name: string
+  description?: string
+  icon?: string
+  order?: number
+}) => {
+  const response = await api.post('admin/company-categories/', payload)
+  return response.data
+}
+
+export const updateCompanyCategory = async (categoryId: number, payload: Partial<{
+  name: string
+  description?: string
+  icon?: string
+  order?: number
+  is_active?: boolean
+}>) => {
+  const response = await api.patch(`admin/company-categories/${categoryId}/`, payload)
+  return response.data
+}
+
+export const deleteCompanyCategory = async (categoryId: number) => {
+  const response = await api.delete(`admin/company-categories/${categoryId}/`)
+  return response.data
+}
+
+export const fetchCompanies = async (includeInactive = false, categoryId?: number) => {
+  const params: Record<string, any> = { include_inactive: includeInactive }
+  if (categoryId) params.category_id = categoryId
+  const response = await api.get('admin/companies/', { params })
+  return response.data
+}
+
+export const createCompany = async (payload: {
+  name: string
+  email: string
+  website?: string
+  description?: string
+  location?: string
+  industry?: string
+  category_id?: number
+}) => {
+  const response = await api.post('admin/companies/', payload)
+  return response.data
+}
+
+export const updateCompany = async (companyId: number, payload: Partial<{
+  name: string
+  email: string
+  website?: string
+  description?: string
+  location?: string
+  industry?: string
+  category_id?: number
+  is_active?: boolean
+}>) => {
+  const response = await api.patch(`admin/companies/${companyId}/`, payload)
+  return response.data
+}
+
+export const deleteCompany = async (companyId: number) => {
+  const response = await api.delete(`admin/companies/${companyId}/`)
+  return response.data
+}
+
+export const fetchJobRecommendations = async (recommendationId?: number) => {
+  const params: Record<string, number> = {}
+  if (recommendationId !== undefined) params.recommendation_id = recommendationId
+  const response = await api.get('admin/job-recommendations/', { params })
+  return response.data
+}
+
+export const createJobRecommendation = async (payload: {
+  career_recommendation: number
+  company: number
+  job_title: string
+  job_description: string
+  requirements?: string
+  salary_range?: string
+  job_type: string
+  application_url?: string
+  order?: number
+}) => {
+  const response = await api.post('admin/job-recommendations/', payload)
+  return response.data
+}
+
+export const updateJobRecommendation = async (jobId: number, payload: Partial<{
+  company: number
+  job_title: string
+  job_description: string
+  requirements?: string
+  salary_range?: string
+  job_type: string
+  application_url?: string
+  order?: number
+  is_active?: boolean
+}>) => {
+  const response = await api.patch(`admin/job-recommendations/${jobId}/`, payload)
+  return response.data
+}

@@ -11,6 +11,7 @@ from .models import (
     CareerRecommendation,
     CareerResource,
     Company,
+    CompanyCategory,
     JobRecommendation,
     Option,
     PersonalizedTest,
@@ -30,6 +31,7 @@ from .serializers import (
     CareerRecommendationSerializer,
     CareerResourceCreateSerializer,
     CareerResourceSerializer,
+    CompanyCategorySerializer,
     CompanySerializer,
     CustomTokenObtainPairSerializer,
     JobRecommendationCreateSerializer,
@@ -949,6 +951,35 @@ class StudentMyResourcesView(APIView):
 
 # ========== COMPANY & JOB RECOMMENDATION VIEWS ==========
 
+class AdminCompanyCategoryListView(generics.ListCreateAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = CompanyCategorySerializer
+
+    def get_queryset(self):
+        if self.request.user.role != User.Roles.ADMIN:
+            raise PermissionDenied("Only admins can view company categories.")
+        queryset = CompanyCategory.objects.all()
+        include_inactive = self.request.query_params.get('include_inactive') == 'true'
+        if not include_inactive:
+            queryset = queryset.filter(is_active=True)
+        return queryset.order_by('order', 'name')
+
+
+class AdminCompanyCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = CompanyCategorySerializer
+
+    def get_queryset(self):
+        if self.request.user.role != User.Roles.ADMIN:
+            raise PermissionDenied("Only admins can manage company categories.")
+        return CompanyCategory.objects.all()
+
+    def perform_destroy(self, instance):
+        # Soft delete
+        instance.is_active = False
+        instance.save()
+
+
 class AdminCompanyListView(generics.ListCreateAPIView):
     permission_classes = (permissions.IsAuthenticated,)
     serializer_class = CompanySerializer
@@ -957,10 +988,16 @@ class AdminCompanyListView(generics.ListCreateAPIView):
         if self.request.user.role != User.Roles.ADMIN:
             raise PermissionDenied("Only admins can view companies.")
         include_inactive = self.request.query_params.get('include_inactive') == 'true'
-        queryset = Company.objects.all().order_by('name')
+        queryset = Company.objects.select_related('category').all()
+        
+        # Filter by category if provided
+        category_id = self.request.query_params.get('category_id')
+        if category_id:
+            queryset = queryset.filter(category_id=category_id)
+        
         if not include_inactive:
             queryset = queryset.filter(is_active=True)
-        return queryset
+        return queryset.order_by('category', 'name')
 
 
 class AdminCompanyDetailView(generics.RetrieveUpdateDestroyAPIView):

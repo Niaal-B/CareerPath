@@ -31,15 +31,38 @@ type Resource = {
   } | null
 }
 
+type Company = {
+  id: number
+  name: string
+  email: string
+  website?: string
+  description?: string
+  location?: string
+  industry?: string
+}
+
+type JobRecommendation = {
+  id: number
+  company: Company
+  job_title: string
+  job_description: string
+  requirements?: string
+  salary_range?: string
+  job_type: 'full_time' | 'part_time' | 'contract' | 'internship' | 'remote'
+  application_url?: string
+}
+
 type Recommendation = {
   id: number
   career_name: string
   summary: string
+  companies?: string[]
   created_at: string
   test_id: number
   request_id: number
   steps: RoadmapStep[]
   resources?: Resource[]
+  job_recommendations?: JobRecommendation[]
 }
 
 export default function StudentRecommendationsPage() {
@@ -47,6 +70,7 @@ export default function StudentRecommendationsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [exporting, setExporting] = useState<number | null>(null)
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null)
 
   useEffect(() => {
     const loadRecommendations = async () => {
@@ -138,6 +162,91 @@ export default function StudentRecommendationsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Company Details Modal */}
+      {selectedCompany && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setSelectedCompany(null)}>
+          <div
+            className="w-full max-w-2xl rounded-3xl border border-white/70 bg-white/95 p-6 shadow-glass"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-display text-2xl text-ink">{selectedCompany.name}</h3>
+              <button
+                onClick={() => setSelectedCompany(null)}
+                className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+              >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {selectedCompany.description && (
+                <div>
+                  <p className="mb-2 text-sm font-semibold text-brand">About</p>
+                  <p className="text-slate-700">{selectedCompany.description}</p>
+                </div>
+              )}
+              
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {selectedCompany.email && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">📧</span>
+                    <div>
+                      <p className="text-xs text-slate-500">Email</p>
+                      <a
+                        href={`mailto:${selectedCompany.email}`}
+                        className="text-sm text-brand hover:underline"
+                      >
+                        {selectedCompany.email}
+                      </a>
+                    </div>
+                  </div>
+                )}
+                
+                {selectedCompany.website && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">🌐</span>
+                    <div>
+                      <p className="text-xs text-slate-500">Website</p>
+                      <a
+                        href={selectedCompany.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-brand hover:underline"
+                      >
+                        Visit Website
+                      </a>
+                    </div>
+                  </div>
+                )}
+                
+                {selectedCompany.location && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">📍</span>
+                    <div>
+                      <p className="text-xs text-slate-500">Location</p>
+                      <p className="text-sm text-slate-700">{selectedCompany.location}</p>
+                    </div>
+                  </div>
+                )}
+                
+                {selectedCompany.industry && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">🏢</span>
+                    <div>
+                      <p className="text-xs text-slate-500">Industry</p>
+                      <p className="text-sm text-slate-700">{selectedCompany.industry}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-sm uppercase tracking-[0.3em] text-brand">Your path</p>
@@ -201,6 +310,39 @@ export default function StudentRecommendationsPage() {
                   <p className="text-sm font-semibold text-brand">Why this career?</p>
                   <p className="mt-2 text-slate-700">{recommendation.summary}</p>
                 </div>
+
+                {recommendation.companies && recommendation.companies.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-sm font-semibold text-brand">Top Companies</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {recommendation.companies.map((companyName, index) => (
+                        <button
+                          key={index}
+                          onClick={() => {
+                            // Try to find company details from job recommendations
+                            const companyDetails = recommendation.job_recommendations?.find(
+                              job => job.company.name === companyName
+                            )?.company
+                            
+                            if (companyDetails) {
+                              setSelectedCompany(companyDetails)
+                            } else {
+                              // If not found in job recommendations, create a basic company object
+                              setSelectedCompany({
+                                id: 0,
+                                name: companyName,
+                                email: '',
+                              })
+                            }
+                          }}
+                          className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700 transition hover:bg-slate-200 cursor-pointer"
+                        >
+                          {companyName}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {recommendation.steps.length > 0 && (
@@ -307,6 +449,103 @@ export default function StudentRecommendationsPage() {
                           </select>
                           {resource.student_progress?.is_favorite && (
                             <span className="text-yellow-500">⭐</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {recommendation.job_recommendations && recommendation.job_recommendations.length > 0 && (
+                <div className="mt-8">
+                  <p className="mb-4 text-sm font-semibold uppercase tracking-[0.3em] text-muted">
+                    Recommended Companies & Jobs
+                  </p>
+                  <div className="space-y-4">
+                    {recommendation.job_recommendations.map((job) => (
+                      <div
+                        key={job.id}
+                        className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="mb-3 flex items-center gap-2">
+                              <button
+                                onClick={() => setSelectedCompany(job.company)}
+                                className="font-semibold text-lg text-ink hover:text-brand transition cursor-pointer text-left"
+                              >
+                                {job.company.name}
+                              </button>
+                              <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand capitalize">
+                                {job.job_type.replace('_', ' ')}
+                              </span>
+                            </div>
+                            <p className="mb-2 font-medium text-ink">{job.job_title}</p>
+                            {job.company.description && (
+                              <div className="mb-3 rounded-lg border border-brand/20 bg-brand/5 p-3">
+                                <p className="mb-1 text-xs font-semibold text-brand">About {job.company.name}</p>
+                                <p className="text-sm text-slate-700">{job.company.description}</p>
+                              </div>
+                            )}
+                            <p className="mb-3 text-sm text-slate-600">{job.job_description}</p>
+                            {job.requirements && (
+                              <div className="mb-3 rounded-lg border border-slate-100 bg-slate-50 p-3">
+                                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                  Requirements
+                                </p>
+                                <p className="text-sm text-slate-700">{job.requirements}</p>
+                              </div>
+                            )}
+                            {job.salary_range && (
+                              <p className="mb-3 text-sm text-slate-600">
+                                <span className="font-semibold">Salary:</span> {job.salary_range}
+                              </p>
+                            )}
+                            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                              <span className="flex items-center gap-1">
+                                <span>📧</span>
+                                <a
+                                  href={`mailto:${job.company.email}`}
+                                  className="text-brand hover:underline"
+                                >
+                                  {job.company.email}
+                                </a>
+                              </span>
+                              {job.company.website && (
+                                <a
+                                  href={job.company.website}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1 text-brand hover:underline"
+                                >
+                                  <span>🌐</span>
+                                  Website
+                                </a>
+                              )}
+                              {job.company.location && (
+                                <span className="flex items-center gap-1">
+                                  <span>📍</span>
+                                  {job.company.location}
+                                </span>
+                              )}
+                              {job.company.industry && (
+                                <span className="flex items-center gap-1">
+                                  <span>🏢</span>
+                                  {job.company.industry}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {job.application_url && (
+                            <a
+                              href={job.application_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="shrink-0 rounded-full bg-brand px-6 py-3 text-sm font-semibold text-white transition hover:bg-brand-dark whitespace-nowrap"
+                            >
+                              Apply Now
+                            </a>
                           )}
                         </div>
                       </div>

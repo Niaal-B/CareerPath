@@ -6,6 +6,7 @@ from .models import (
     CareerRecommendation,
     CareerResource,
     Company,
+    CompanyCategory,
     JobRecommendation,
     Option,
     OptionTemplate,
@@ -176,16 +177,41 @@ class StudentResourceProgressAdmin(admin.ModelAdmin):
     readonly_fields = ('started_at', 'completed_at', 'updated_at')
 
 
+@admin.register(CompanyCategory)
+class CompanyCategoryAdmin(admin.ModelAdmin):
+    list_display = ('name', 'icon', 'order', 'is_active', 'created_at')
+    list_filter = ('is_active',)
+    search_fields = ('name', 'description')
+    list_editable = ('is_active', 'order')
+    ordering = ('order', 'name')
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('name', 'description', 'icon')
+        }),
+        ('Display', {
+            'fields': ('order', 'is_active')
+        }),
+        ('Metadata', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
+    readonly_fields = ('created_at',)
+
+
 @admin.register(Company)
 class CompanyAdmin(admin.ModelAdmin):
-    list_display = ('name', 'email', 'industry', 'location', 'is_active', 'created_at')
-    list_filter = ('is_active', 'industry')
+    list_display = ('name', 'email', 'category', 'industry', 'location', 'is_active', 'created_at')
+    list_filter = ('is_active', 'industry', 'category')
     search_fields = ('name', 'email', 'description')
     list_editable = ('is_active',)
-    ordering = ('name',)
+    ordering = ('category', 'name')
     fieldsets = (
         ('Basic Information', {
             'fields': ('name', 'email', 'website', 'description')
+        }),
+        ('Categorization', {
+            'fields': ('category',)
         }),
         ('Location & Industry', {
             'fields': ('location', 'industry')

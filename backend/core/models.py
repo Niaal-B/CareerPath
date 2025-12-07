@@ -316,6 +316,23 @@ class OptionTemplate(models.Model):
         return f"Option {self.order} for template {self.question_id}"
 
 
+class CompanyCategory(models.Model):
+    """Categories for organizing companies (e.g., Technology, Finance, Healthcare)"""
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, help_text="Category description")
+    icon = models.CharField(max_length=50, blank=True, help_text="Icon name or emoji")
+    is_active = models.BooleanField(default=True)
+    order = models.PositiveIntegerField(default=0, help_text="Order for display")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name_plural = "Company Categories"
+        ordering = ['order', 'name']
+
+    def __str__(self):
+        return self.name
+
+
 class Company(models.Model):
     """Company information that can be recommended to students"""
     name = models.CharField(max_length=255)
@@ -324,13 +341,21 @@ class Company(models.Model):
     description = models.TextField(blank=True, help_text="Company description/details")
     location = models.CharField(max_length=255, blank=True, help_text="Company location")
     industry = models.CharField(max_length=100, blank=True, help_text="Industry sector")
+    category = models.ForeignKey(
+        'CompanyCategory',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='companies',
+        help_text="Company category"
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name_plural = "Companies"
-        ordering = ['name']
+        ordering = ['category', 'name']
 
     def __str__(self):
         return self.name

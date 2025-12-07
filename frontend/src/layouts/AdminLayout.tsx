@@ -11,6 +11,7 @@ const adminLinks = [
   { label: 'Question Bank', to: '/admin/question-bank', icon: '🗂️' },
   { label: 'Reviews', to: '/admin/reviews', icon: '🧐' },
   { label: 'Resources', to: '/admin/resources', icon: '📚' },
+  { label: 'Companies', to: '/admin/companies', icon: '🏢' },
 ]
 
 export function AdminLayout({ children }: { children: ReactNode }) {

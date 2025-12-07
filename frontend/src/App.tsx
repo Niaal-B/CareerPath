@@ -7,6 +7,7 @@ import LandingPage from './pages/Landing'
 import LoginPage from './pages/auth/LoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
 import AdminDashboard from './pages/admin/AdminDashboard'
+import CompaniesPage from './pages/admin/CompaniesPage'
 import QuestionBuilderPage from './pages/admin/QuestionBuilderPage'
 import QuestionBankPage from './pages/admin/QuestionBankPage.tsx'
 import RequestsPage from './pages/admin/RequestsPage'
@@ -131,6 +132,16 @@ function App() {
             <ProtectedRoute role="admin">
               <AdminLayout>
                 <ResourcesPage />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/companies"
+          element={
+            <ProtectedRoute role="admin">
+              <AdminLayout>
+                <CompaniesPage />
               </AdminLayout>
             </ProtectedRoute>
           }
